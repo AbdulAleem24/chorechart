@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import type { User, Attachment, Strike } from '../types';
 import { fileToBase64, compressImage, generateId, formatDate } from '../utils';
-import { AlertTriangle, Paperclip, Video, X, PartyPopper } from 'lucide-react';
+import { AlertTriangle, Paperclip, Video, X, PartyPopper, Trash2 } from 'lucide-react';
 
 interface StrikeModalProps {
   targetUser: User;
@@ -14,6 +14,7 @@ export function StrikeModal({ targetUser, onSubmit, onClose }: StrikeModalProps)
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [viewingImage, setViewingImage] = useState<string | null>(null);
+  const [viewingVideo, setViewingVideo] = useState<string | null>(null);
   
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -104,8 +105,17 @@ export function StrikeModal({ targetUser, onSubmit, onClose }: StrikeModalProps)
                         onClick={() => setViewingImage(att.url)}
                       />
                     ) : (
-                      <div className="w-14 h-14 sm:w-16 sm:h-16 bg-gray-200 rounded-lg flex items-center justify-center">
-                        <Video size={20} className="sm:w-6 sm:h-6" />
+                      <div 
+                        className="w-14 h-14 sm:w-16 sm:h-16 relative cursor-pointer hover:ring-2 hover:ring-blue-400 rounded-lg overflow-hidden bg-gray-200"
+                        onClick={() => setViewingVideo(att.url)}
+                      >
+                        <video 
+                          src={att.url}
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                          <Video size={20} className="text-white sm:w-6 sm:h-6" />
+                        </div>
                       </div>
                     )}
                     <button
@@ -174,17 +184,45 @@ export function StrikeModal({ targetUser, onSubmit, onClose }: StrikeModalProps)
           />
         </div>
       )}
+      
+      {/* Video Viewer Lightbox */}
+      {viewingVideo && (
+        <div 
+          className="fixed inset-0 bg-black/90 flex items-center justify-center z-[60] p-4"
+          onClick={() => setViewingVideo(null)}
+        >
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setViewingVideo(null);
+            }}
+            className="absolute top-4 right-4 w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white transition-all z-10"
+          >
+            <X size={24} />
+          </button>
+          <video 
+            src={viewingVideo} 
+            controls
+            autoPlay
+            className="max-w-full max-h-full"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
     </div>
   );
 }
 
 interface StrikeHistoryModalProps {
   strikes: Strike[];
+  currentUser: User;
   onClose: () => void;
+  onDeleteStrike?: (strikeId: string) => void;
 }
 
-export function StrikeHistoryModal({ strikes, onClose }: StrikeHistoryModalProps) {
+export function StrikeHistoryModal({ strikes, currentUser, onClose, onDeleteStrike }: StrikeHistoryModalProps) {
   const [viewingImage, setViewingImage] = useState<string | null>(null);
+  const [viewingVideo, setViewingVideo] = useState<string | null>(null);
   
   return (
     <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50" onClick={onClose}>
@@ -217,12 +255,27 @@ export function StrikeHistoryModal({ strikes, onClose }: StrikeHistoryModalProps
                   className="p-2.5 sm:p-3 rounded-lg bg-red-50 border border-red-200"
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <span className="font-medium text-red-800 text-xs sm:text-sm">
-                      {strike.givenBy} → {strike.givenTo}
-                    </span>
-                    <span className="text-[10px] sm:text-xs text-gray-500">
-                      {formatDate(strike.createdAt)}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-red-800 text-xs sm:text-sm">
+                        {strike.givenBy} → {strike.givenTo}
+                      </span>
+                      <span className="text-[10px] sm:text-xs text-gray-500">
+                        {formatDate(strike.createdAt)}
+                      </span>
+                    </div>
+                    {onDeleteStrike && strike.givenBy === currentUser && (
+                      <button
+                        onClick={() => {
+                          if (window.confirm('Are you sure you want to delete this strike?')) {
+                            onDeleteStrike(strike.id);
+                          }
+                        }}
+                        className="text-red-500 hover:text-red-700 hover:bg-red-100 p-1 rounded transition-all"
+                        title="Delete strike"
+                      >
+                        <Trash2 size={14} className="sm:w-4 sm:h-4" />
+                      </button>
+                    )}
                   </div>
                   <p className="text-gray-700 text-xs sm:text-sm">{strike.reason}</p>
                   
@@ -238,11 +291,18 @@ export function StrikeHistoryModal({ strikes, onClose }: StrikeHistoryModalProps
                               onClick={() => setViewingImage(att.url)}
                             />
                           ) : (
-                            <video 
-                              src={att.url}
-                              className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-lg"
-                              controls
-                            />
+                            <div 
+                              className="w-16 h-16 sm:w-20 sm:h-20 relative cursor-pointer hover:ring-2 hover:ring-blue-400 rounded-lg overflow-hidden"
+                              onClick={() => setViewingVideo(att.url)}
+                            >
+                              <video 
+                                src={att.url}
+                                className="w-full h-full object-cover"
+                              />
+                              <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                                <Video size={20} className="text-white sm:w-5 sm:h-5" />
+                              </div>
+                            </div>
                           )}
                         </div>
                       ))}
@@ -274,6 +334,31 @@ export function StrikeHistoryModal({ strikes, onClose }: StrikeHistoryModalProps
             src={viewingImage} 
             alt="Enlarged view"
             className="max-w-full max-h-full object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
+      
+      {/* Video Viewer Lightbox */}
+      {viewingVideo && (
+        <div 
+          className="fixed inset-0 bg-black/90 flex items-center justify-center z-[60] p-4"
+          onClick={() => setViewingVideo(null)}
+        >
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setViewingVideo(null);
+            }}
+            className="absolute top-4 right-4 w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white transition-all z-10"
+          >
+            <X size={24} />
+          </button>
+          <video 
+            src={viewingVideo} 
+            controls
+            autoPlay
+            className="max-w-full max-h-full"
             onClick={(e) => e.stopPropagation()}
           />
         </div>

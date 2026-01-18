@@ -38,3 +38,13 @@ export const addStrike = mutation({
     });
   },
 });
+
+// Delete a strike
+export const deleteStrike = mutation({
+  args: {
+    strikeId: v.id("strikes"),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.delete(args.strikeId);
+  },
+});

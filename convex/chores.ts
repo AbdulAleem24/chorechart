@@ -146,3 +146,23 @@ export const addComment = mutation({
     return choreId;
   },
 });
+
+// Delete comment from chore
+export const deleteComment = mutation({
+  args: {
+    choreId: v.id("chores"),
+    commentId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const chore = await ctx.db.get(args.choreId);
+    if (!chore) throw new Error("Chore not found");
+
+    const updatedComments = chore.comments.filter(c => c.id !== args.commentId);
+    
+    await ctx.db.patch(args.choreId, {
+      comments: updatedComments,
+    });
+
+    return args.choreId;
+  },
+});

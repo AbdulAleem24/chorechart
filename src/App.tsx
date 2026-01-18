@@ -71,13 +71,18 @@ function App() {
   // Convex mutations
   const toggleChoreMutation = useMutation(api.chores.toggleChore);
   const addCommentMutation = useMutation(api.chores.addComment);
+  const deleteCommentMutation = useMutation(api.chores.deleteComment);
   const incrementTrashMutation = useMutation(api.trash.incrementTrashTally);
   const decrementTrashMutation = useMutation(api.trash.decrementTrashTally);
   const addStrikeMutation = useMutation(api.strikes.addStrike);
+  const deleteStrikeMutation = useMutation(api.strikes.deleteStrike);
   const updateTutorialShown = useMutation(api.users.updateTutorialShown);
   const addGoodBoyDate = useMutation(api.users.addGoodBoyShownDate);
   const updateFirstChoreCompleted = useMutation(api.users.updateFirstChoreCompleted);
   const resetAllDataMutation = useMutation(api.reset.resetAllData);
+  
+  // Strike submission state to prevent duplicates
+  const [isSubmittingStrike, setIsSubmittingStrike] = useState(false);
   
   // Convert Convex data to local format for compatibility with existing components
   const chores: ChoreEntry[] = (choresData || []).map(c => ({
@@ -310,22 +315,54 @@ function App() {
   
   // Handle giving a strike
   const handleGiveStrike = async (reason: string, attachments: Attachment[]) => {
-    if (!currentUser || !showStrikeModal) return;
+    if (!currentUser || !showStrikeModal || isSubmittingStrike) return;
     
-    await addStrikeMutation({
-      choreId: showStrikeModal.choreId as Id<"chores"> | undefined,
-      givenBy: currentUser,
-      givenTo: showStrikeModal.targetUser,
-      reason,
-      attachments: attachments.map(att => ({
-        id: att.id,
-        type: att.type,
-        url: att.url,
-        name: att.name,
-      })),
-    });
+    setIsSubmittingStrike(true);
     
-    setShowStrikeModal(null);
+    try {
+      await addStrikeMutation({
+        choreId: showStrikeModal.choreId as Id<"chores"> | undefined,
+        givenBy: currentUser,
+        givenTo: showStrikeModal.targetUser,
+        reason,
+        attachments: attachments.map(att => ({
+          id: att.id,
+          type: att.type,
+          url: att.url,
+          name: att.name,
+        })),
+      });
+      
+      setShowStrikeModal(null);
+    } catch (error) {
+      console.error('Failed to add strike:', error);
+      alert('Failed to add strike. Please try again.');
+    } finally {
+      setIsSubmittingStrike(false);
+    }
+  };
+  
+  // Handle deleting a strike
+  const handleDeleteStrike = async (strikeId: string) => {
+    try {
+      await deleteStrikeMutation({ strikeId: strikeId as Id<"strikes"> });
+    } catch (error) {
+      console.error('Failed to delete strike:', error);
+      alert('Failed to delete strike. Please try again.');
+    }
+  };
+  
+  // Handle deleting a comment
+  const handleDeleteComment = async (choreId: string, commentId: string) => {
+    try {
+      await deleteCommentMutation({ 
+        choreId: choreId as Id<"chores">, 
+        commentId 
+      });
+    } catch (error) {
+      console.error('Failed to delete comment:', error);
+      alert('Failed to delete comment. Please try again.');
+    }
   };
   
   // Open strike modal
@@ -407,13 +444,13 @@ function App() {
               </p>
             </div>
             <div className="flex gap-2 sm:gap-2">
-              <button
+              {/* <button
                 onClick={handleResetData}
                 className="px-3 py-2 sm:px-3 sm:py-2 bg-red-500/20 hover:bg-red-500/30 text-red-200 rounded-lg text-xs sm:text-xs font-medium transition-all"
                 title="Reset all data to start fresh"
               >
                 Reset
-              </button>
+              </button> */}
               <button
                 onClick={handleLogout}
                 className="px-3 py-2 sm:px-4 sm:py-2 bg-white/20 hover:bg-white/30 rounded-lg text-sm sm:text-sm font-medium transition-all flex items-center gap-2 sm:gap-2"
@@ -493,6 +530,8 @@ function App() {
           onToggleChore={handleToggleChore}
           onAddComment={handleAddComment}
           onStrike={(targetUser, choreId) => handleOpenStrikeModal(targetUser, choreId)}
+          onDeleteStrike={handleDeleteStrike}
+          onDeleteComment={handleDeleteComment}
         />
         
         {/* Quick Actions for Today */}
@@ -531,7 +570,9 @@ function App() {
       {showStrikeHistory && (
         <StrikeHistoryModal
           strikes={getCurrentMonthStrikes()}
+          currentUser={currentUser}
           onClose={() => setShowStrikeHistory(false)}
+          onDeleteStrike={handleDeleteStrike}
         />
       )}
     </div>

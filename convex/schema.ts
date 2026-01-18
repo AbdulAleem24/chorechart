@@ -8,6 +8,10 @@ export default defineSchema({
     tutorialShown: v.boolean(),
     firstChoreCompleted: v.boolean(),
     goodBoyShownDates: v.array(v.string()),
+    notificationsEnabled: v.optional(v.boolean()),
+    morningNotificationTime: v.optional(v.string()),
+    eveningNotificationTime: v.optional(v.string()),
+    lastEveningNotification: v.optional(v.string()),
   }).index("by_name", ["name"]),
 
   chores: defineTable({

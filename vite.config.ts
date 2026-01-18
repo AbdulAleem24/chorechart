@@ -6,7 +6,7 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
-    allowedHosts: ['1079bbe785e4.ngrok-free.app'], 
+    allowedHosts: ['b18575ae754e.ngrok-free.app'], 
   },
   optimizeDeps: {
     include: ['react', 'react-dom', 'convex/react'],

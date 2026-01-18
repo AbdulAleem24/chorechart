@@ -14,6 +14,8 @@ interface ChoreCalendarProps {
   onToggleChore: (date: string, choreType: ChoreType) => void;
   onAddComment: (choreId: string, text: string, attachments: Attachment[]) => void;
   onStrike?: (targetUser: User, choreId: string) => void;
+  onDeleteStrike?: (strikeId: string) => void;
+  onDeleteComment?: (choreId: string, commentId: string) => void;
 }
 
 const choreTypes: ChoreType[] = [
@@ -32,6 +34,8 @@ export function ChoreCalendar({
   onToggleChore,
   onAddComment,
   onStrike,
+  onDeleteStrike,
+  onDeleteComment,
 }: ChoreCalendarProps) {
   const [selectedChore, setSelectedChore] = useState<ChoreEntry | null>(null);
   const todayColumnRef = useRef<HTMLTableCellElement>(null);
@@ -51,6 +55,17 @@ export function ChoreCalendar({
       todayColumnRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
     }
   }, [isCurrentMonth, year, month]);
+  
+  // Update selected chore when chores data changes (for real-time updates)
+  useEffect(() => {
+    if (selectedChore && !selectedChore.id.startsWith('temp-')) {
+      // Find the updated version of the selected chore
+      const updatedChore = chores.find(c => c.id === selectedChore.id);
+      if (updatedChore) {
+        setSelectedChore(updatedChore);
+      }
+    }
+  }, [chores, selectedChore]);
   
   const handleCellClick = (day: number, choreType: ChoreType) => {
     const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -284,7 +299,7 @@ export function ChoreCalendar({
           onAddComment={(text, attachments) => {
             // Pass the choreId (even if temp) - parent will handle creating entry if needed
             onAddComment(selectedChore.id, text, attachments);
-            setSelectedChore(null);
+            // Don't close modal - it will refresh automatically via useEffect below
           }}
           onToggle={() => {
             // Recalculate to ensure correct assignment
@@ -304,6 +319,11 @@ export function ChoreCalendar({
               onStrike(actualAssignedUser, selectedChore.id);
             }
           }}
+          onDeleteStrike={onDeleteStrike}
+          onDeleteComment={onDeleteComment ? (commentId) => {
+            onDeleteComment(selectedChore.id, commentId);
+            // Don't close modal - it will refresh automatically via useEffect below
+          } : undefined}
         />
       )}
     </div>

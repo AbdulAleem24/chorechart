@@ -2,7 +2,7 @@ import { useState } from 'react';
 import type { ChoreEntry, User, Attachment, Strike } from '../types';
 import { formatDate, fileToBase64, compressImage, generateId, isDateActionable, getAssignedUser } from '../utils';
 import { CHORE_LABELS } from '../types';
-import { X, CheckCircle, Clock, Undo2, Check, AlertTriangle, Paperclip, Send, Video } from 'lucide-react';
+import { X, CheckCircle, Clock, Undo2, Check, AlertTriangle, Paperclip, Send, Video, Trash2 } from 'lucide-react';
 
 interface ChoreDetailModalProps {
   chore: ChoreEntry;
@@ -12,6 +12,8 @@ interface ChoreDetailModalProps {
   onAddComment: (text: string, attachments: Attachment[]) => void;
   onToggle?: () => void;
   onStrike?: () => void;
+  onDeleteStrike?: (strikeId: string) => void;
+  onDeleteComment?: (commentId: string) => void;
 }
 
 export function ChoreDetailModal({ 
@@ -22,11 +24,14 @@ export function ChoreDetailModal({
   onAddComment,
   onToggle,
   onStrike,
+  onDeleteStrike,
+  onDeleteComment,
 }: ChoreDetailModalProps) {
   const [commentText, setCommentText] = useState('');
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [viewingImage, setViewingImage] = useState<string | null>(null);
+  const [viewingVideo, setViewingVideo] = useState<string | null>(null);
   
   // Calculate assignedTo from date and choreType (not stored)
   const assignedTo = getAssignedUser(chore.choreType, chore.date);
@@ -43,7 +48,7 @@ export function ChoreDetailModal({
   
   const canToggle = isOwnChore && isActionable;
   const choreStrikes = strikes.filter(s => s.choreId === chore.id);
-  const canGiveStrike = chore.completed && !isOwnChore && !isTempEntry && choreStrikes.length === 0;
+  const canGiveStrike = chore.completed && !isOwnChore && !isTempEntry; // Removed single strike limitation
   const canAddComment = isCurrentMonth; // Can comment on any chore in current month
   
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -195,6 +200,19 @@ export function ChoreDetailModal({
                           {new Date(strike.createdAt).toLocaleString()}
                         </span>
                       </div>
+                      {onDeleteStrike && strike.givenBy === currentUser && (
+                        <button
+                          onClick={() => {
+                            if (window.confirm('Are you sure you want to delete this strike?')) {
+                              onDeleteStrike(strike.id);
+                            }
+                          }}
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1 rounded transition-all"
+                          title="Delete strike"
+                        >
+                          <Trash2 size={16} className="sm:w-4 sm:h-4" />
+                        </button>
+                      )}
                     </div>
                     <p className="text-xs sm:text-sm text-gray-700 mb-2"><strong>Reason:</strong> {strike.reason}</p>
                     {strike.attachments.length > 0 && (
@@ -211,11 +229,18 @@ export function ChoreDetailModal({
                                   onClick={() => setViewingImage(att.url)}
                                 />
                               ) : (
-                                <video 
-                                  src={att.url}
-                                  className="w-20 h-20 object-cover rounded-lg border border-gray-300"
-                                  controls
-                                />
+                                <div 
+                                  className="w-16 h-16 sm:w-20 sm:h-20 relative cursor-pointer hover:ring-2 hover:ring-blue-400 rounded-lg overflow-hidden border border-gray-300"
+                                  onClick={() => setViewingVideo(att.url)}
+                                >
+                                  <video 
+                                    src={att.url}
+                                    className="w-full h-full object-cover"
+                                  />
+                                  <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                                    <Video size={24} className="text-white" />
+                                  </div>
+                                </div>
                               )}
                             </div>
                           ))}
@@ -243,11 +268,26 @@ export function ChoreDetailModal({
                       comment.userId === currentUser ? 'bg-blue-50 ml-2 sm:ml-4' : 'bg-gray-100 mr-2 sm:mr-4'
                     }`}
                   >
-                    <div className="flex items-center gap-2 sm:gap-2 mb-1.5">
-                      <span className="font-medium text-sm sm:text-sm">{comment.userId}</span>
-                      <span className="text-xs sm:text-xs text-gray-400">
-                        {new Date(comment.createdAt).toLocaleString()}
-                      </span>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center gap-2 sm:gap-2">
+                        <span className="font-medium text-sm sm:text-sm">{comment.userId}</span>
+                        <span className="text-xs sm:text-xs text-gray-400">
+                          {new Date(comment.createdAt).toLocaleString()}
+                        </span>
+                      </div>
+                      {onDeleteComment && comment.userId === currentUser && (
+                        <button
+                          onClick={() => {
+                            if (window.confirm('Are you sure you want to delete this comment?')) {
+                              onDeleteComment(comment.id);
+                            }
+                          }}
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1 rounded transition-all"
+                          title="Delete comment"
+                        >
+                          <Trash2 size={14} className="sm:w-4 sm:h-4" />
+                        </button>
+                      )}
                     </div>
                     {comment.text && <p className="text-gray-700 text-sm sm:text-sm leading-relaxed">{comment.text}</p>}
                     
@@ -263,11 +303,18 @@ export function ChoreDetailModal({
                                 onClick={() => setViewingImage(att.url)}
                               />
                             ) : (
-                              <video 
-                                src={att.url}
-                                className="w-20 h-20 object-cover rounded-lg"
-                                controls
-                              />
+                              <div 
+                                className="w-24 h-24 sm:w-20 sm:h-20 relative cursor-pointer hover:ring-2 hover:ring-blue-400 rounded-lg overflow-hidden"
+                                onClick={() => setViewingVideo(att.url)}
+                              >
+                                <video 
+                                  src={att.url}
+                                  className="w-full h-full object-cover"
+                                />
+                                <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                                  <Video size={24} className="text-white" />
+                                </div>
+                              </div>
                             )}
                           </div>
                         ))}
@@ -365,6 +412,31 @@ export function ChoreDetailModal({
             src={viewingImage} 
             alt="Enlarged view"
             className="max-w-full max-h-full object-contain"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
+      
+      {/* Video Viewer Lightbox */}
+      {viewingVideo && (
+        <div 
+          className="fixed inset-0 bg-black/90 flex items-center justify-center z-[60] p-4"
+          onClick={() => setViewingVideo(null)}
+        >
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setViewingVideo(null);
+            }}
+            className="absolute top-4 right-4 w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center text-white transition-all z-10"
+          >
+            <X size={24} />
+          </button>
+          <video 
+            src={viewingVideo} 
+            controls
+            autoPlay
+            className="max-w-full max-h-full"
             onClick={(e) => e.stopPropagation()}
           />
         </div>
