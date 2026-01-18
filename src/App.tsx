@@ -79,7 +79,7 @@ function App() {
   const updateTutorialShown = useMutation(api.users.updateTutorialShown);
   const addGoodBoyDate = useMutation(api.users.addGoodBoyShownDate);
   const updateFirstChoreCompleted = useMutation(api.users.updateFirstChoreCompleted);
-  const resetAllDataMutation = useMutation(api.reset.resetAllData);
+  // const resetAllDataMutation = useMutation(api.reset.resetAllData);
   
   // Strike submission state to prevent duplicates
   const [isSubmittingStrike, setIsSubmittingStrike] = useState(false);
@@ -149,17 +149,17 @@ function App() {
   };
   
   // Handle reset data - clear all data for development
-  const handleResetData = async () => {
-    if (window.confirm('This will clear ALL data (chores, trash tallies, strikes) and log you out. Continue?')) {
-      try {
-        await resetAllDataMutation();
-        handleLogout();
-      } catch (error) {
-        console.error('Failed to reset data:', error);
-        alert('Failed to reset data. Please try again.');
-      }
-    }
-  };
+  // const handleResetData = async () => {
+  //   if (window.confirm('This will clear ALL data (chores, trash tallies, strikes) and log you out. Continue?')) {
+  //     try {
+  //       await resetAllDataMutation();
+  //       handleLogout();
+  //     } catch (error) {
+  //       console.error('Failed to reset data:', error);
+  //       alert('Failed to reset data. Please try again.');
+  //     }
+  //   }
+  // };
   
   // Handle tutorial completion
   const handleTutorialComplete = async () => {
