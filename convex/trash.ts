@@ -20,6 +20,19 @@ export const getTrashTally = query({
   },
 });
 
+// Get all trash tallies for a user (across all months)
+export const getAllTrashTally = query({
+  args: {
+    userId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("trashTally")
+      .filter((q) => q.eq(q.field("userId"), args.userId))
+      .collect();
+  },
+});
+
 // Increment trash tally
 export const incrementTrashTally = mutation({
   args: {
@@ -80,6 +93,7 @@ export const decrementTrashTally = mutation({
     if (existing && existing.count > 0 && existing.lastIncrementDate === args.date) {
       await ctx.db.patch(existing._id, {
         count: existing.count - 1,
+        lastIncrementDate: undefined,
       });
     }
   },

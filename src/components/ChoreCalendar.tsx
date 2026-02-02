@@ -3,7 +3,7 @@ import type { ChoreEntry, ChoreType, User, Attachment, Strike } from '../types';
 import { CHORE_LABELS } from '../types';
 import { getDaysInMonth, getAssignedUser, getChoreEntry, formatDate, getDayName, isDateActionable } from '../utils';
 import { ChoreDetailModal } from './ChoreDetailModal';
-import { Check, AlertTriangle } from 'lucide-react';
+import { Check, AlertTriangle, Loader2 } from 'lucide-react';
 
 interface ChoreCalendarProps {
   year: number;
@@ -11,6 +11,7 @@ interface ChoreCalendarProps {
   chores: ChoreEntry[];
   strikes: Strike[];
   currentUser: User;
+  loadingChores: Set<string>;
   onToggleChore: (date: string, choreType: ChoreType) => void;
   onAddComment: (choreId: string, text: string, attachments: Attachment[]) => void;
   onStrike?: (targetUser: User, choreId: string) => void;
@@ -31,6 +32,7 @@ export function ChoreCalendar({
   chores,
   strikes,
   currentUser,
+  loadingChores,
   onToggleChore,
   onAddComment,
   onStrike,
@@ -124,6 +126,8 @@ export function ChoreCalendar({
     const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
     const assignedUser = getAssignedUser(choreType, dateStr);
     const choreEntry = getChoreEntry(chores, dateStr, choreType);
+    const choreKey = `${dateStr}-${choreType}`;
+    const isLoading = loadingChores.has(choreKey);
     
     const isToday = isCurrentMonth && day === todayDate;
     const isOwnChore = assignedUser === currentUser;
@@ -177,7 +181,9 @@ export function ChoreCalendar({
         }${isFutureNonActionable ? ' (Too far in future)' : !isClickable ? ' (Not available)' : ''}${hasStrike ? ` - ${choreStrikes.length} Strike(s)` : ''}`}
       >
         <div className="flex flex-col items-center justify-center h-full w-full relative">
-          {isCompleted ? (
+          {isLoading ? (
+            <Loader2 size={16} className="animate-spin text-white" />
+          ) : isCompleted ? (
             <>
               <Check size={16} className="text-white" />
               <span className="text-[9px] font-bold text-white/90 leading-none">{assignedUser[0]}</span>

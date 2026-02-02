@@ -26,9 +26,6 @@ export function TrashTallyCard({ tally, currentUser, onIncrement, onDecrement }:
     <div className="bg-white rounded-xl shadow-lg p-5 sm:p-4 mb-4 sm:mb-4">
       <h3 className="text-lg sm:text-lg font-bold text-gray-800 mb-3 sm:mb-3 flex items-center gap-2 sm:gap-2">
         <Trash2 size={22} className="sm:w-5 sm:h-5" /> Trash Tally
-        <span className="text-sm sm:text-sm font-normal text-gray-500">
-          ({new Date().toLocaleString('default', { month: 'long', year: 'numeric' })})
-        </span>
       </h3>
       
       {/* Progress bar */}

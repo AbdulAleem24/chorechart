@@ -187,34 +187,6 @@ export const getAssignedUser = (
   return null;
 };
 
-// Check if should show "good boy" popup (random chance, 1-2 times per week)
-export const shouldShowGoodBoy = (
-  user: User,
-  goodBoyShownDates: string[],
-  firstChoreCompleted: boolean
-): boolean => {
-  if (user !== 'Daniyal') return false;
-  
-  // Always show on first chore completion
-  if (!firstChoreCompleted) return true;
-  
-  const today = new Date().toISOString().split('T')[0];
-  
-  // Already shown today
-  if (goodBoyShownDates.includes(today)) return false;
-  
-  // Count shows this week
-  const weekStart = new Date();
-  weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-  const weekStartStr = weekStart.toISOString().split('T')[0];
-  
-  const showsThisWeek = goodBoyShownDates.filter(d => d >= weekStartStr).length;
-  if (showsThisWeek >= 2) return false;
-  
-  // Random chance (30%)
-  return Math.random() < 0.3;
-};
-
 // Get chore entry for a specific date and chore type
 export const getChoreEntry = (
   chores: ChoreEntry[],

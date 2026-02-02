@@ -6,7 +6,6 @@ import './index.css';
 import type { User, ChoreType, Attachment, ChoreEntry } from './types';
 import { CHORE_LABELS } from './types';
 import { 
-  shouldShowGoodBoy,
   getTodayString,
   getAssignedUser,
   isDateActionable,
@@ -15,7 +14,6 @@ import {
 import {
   SimpleLoginScreen,
   TutorialModal,
-  GoodBoyModal,
   ChoreCalendar,
   TrashTallyCard,
   StrikeModal,
@@ -45,9 +43,9 @@ function App() {
   });
   
   // UI state
-  const [showGoodBoy, setShowGoodBoy] = useState(false);
   const [showStrikeModal, setShowStrikeModal] = useState<{ targetUser: User; choreId?: string } | null>(null);
   const [showStrikeHistory, setShowStrikeHistory] = useState(false);
+  const [loadingChores, setLoadingChores] = useState<Set<string>>(new Set());
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
     return { year: now.getFullYear(), month: now.getMonth() + 1 };
@@ -61,11 +59,11 @@ function App() {
   // We need to get both users' trash tallies
   const aleemUserData = useQuery(api.users.getUserByName, { name: "Aleem" });
   const daniyalUserData = useQuery(api.users.getUserByName, { name: "Daniyal" });
-  const aleemTrash = useQuery(api.trash.getTrashTally, 
-    aleemUserData?._id ? { userId: aleemUserData._id, month: getCurrentMonth() } : "skip"
+  const aleemTrash = useQuery(api.trash.getAllTrashTally, 
+    aleemUserData?._id ? { userId: aleemUserData._id } : "skip"
   );
-  const daniyalTrash = useQuery(api.trash.getTrashTally,
-    daniyalUserData?._id ? { userId: daniyalUserData._id, month: getCurrentMonth() } : "skip"
+  const daniyalTrash = useQuery(api.trash.getAllTrashTally,
+    daniyalUserData?._id ? { userId: daniyalUserData._id } : "skip"
   );
   
   // Convex mutations
@@ -77,8 +75,6 @@ function App() {
   const addStrikeMutation = useMutation(api.strikes.addStrike);
   const deleteStrikeMutation = useMutation(api.strikes.deleteStrike);
   const updateTutorialShown = useMutation(api.users.updateTutorialShown);
-  const addGoodBoyDate = useMutation(api.users.addGoodBoyShownDate);
-  const updateFirstChoreCompleted = useMutation(api.users.updateFirstChoreCompleted);
   // const resetAllDataMutation = useMutation(api.reset.resetAllData);
   
   // Strike submission state to prevent duplicates
@@ -106,13 +102,20 @@ function App() {
     })),
   }));
   
+  // Calculate total trash count across all months
+  const aleemTotal = aleemTrash?.reduce((sum, t) => sum + t.count, 0) || 0;
+  const daniyalTotal = daniyalTrash?.reduce((sum, t) => sum + t.count, 0) || 0;
+  const currentMonthStr = getCurrentMonth();
+  const aleemCurrentMonth = aleemTrash?.find(t => t.month === currentMonthStr);
+  const daniyalCurrentMonth = daniyalTrash?.find(t => t.month === currentMonthStr);
+  
   const trashTally = {
-    month: getCurrentMonth(),
-    Aleem: aleemTrash?.count || 0,
-    Daniyal: daniyalTrash?.count || 0,
+    month: currentMonthStr,
+    Aleem: aleemTotal,
+    Daniyal: daniyalTotal,
     lastIncrementDate: {
-      Aleem: aleemTrash?.lastIncrementDate,
-      Daniyal: daniyalTrash?.lastIncrementDate,
+      Aleem: aleemCurrentMonth?.lastIncrementDate,
+      Daniyal: daniyalCurrentMonth?.lastIncrementDate,
     },
   };
   
@@ -181,30 +184,24 @@ function App() {
     // Only allow toggling own chores
     if (actualAssignedUser !== currentUser) return;
     
-    // Check if we're marking complete
-    const existing = chores.find(c => c.date === date && c.choreType === choreType);
-    const wasCompleted = existing?.completed;
+    // Create a loading key for this specific chore
+    const choreKey = `${date}-${choreType}`;
+    setLoadingChores(prev => new Set(prev).add(choreKey));
     
-    // Toggle the chore
-    await toggleChoreMutation({
-      date,
-      choreType,
-      completedBy: currentUser,
-    });
-    
-    // Check if should show good boy popup
-    if (!wasCompleted && currentUser === 'Daniyal' && userData) {
-      const shouldShowPopup = shouldShowGoodBoy(
-        'Daniyal', 
-        userData.goodBoyShownDates, 
-        userData.firstChoreCompleted
-      );
-      
-      if (shouldShowPopup) {
-        await addGoodBoyDate({ userId, date: getTodayString() });
-        await updateFirstChoreCompleted({ userId, firstChoreCompleted: true });
-        setShowGoodBoy(true);
-      }
+    try {
+      // Toggle the chore
+      await toggleChoreMutation({
+        date,
+        choreType,
+        completedBy: currentUser,
+      });
+    } finally {
+      // Remove loading state
+      setLoadingChores(prev => {
+        const next = new Set(prev);
+        next.delete(choreKey);
+        return next;
+      });
     }
   };
   
@@ -266,8 +263,8 @@ function App() {
     if (!targetUserId) return;
     
     // Check if already incremented today
-    const userTrash = user === 'Aleem' ? aleemTrash : daniyalTrash;
-    if (userTrash?.lastIncrementDate === today) {
+    const userCurrentMonth = user === 'Aleem' ? aleemCurrentMonth : daniyalCurrentMonth;
+    if (userCurrentMonth?.lastIncrementDate === today) {
       return;
     }
     
@@ -276,20 +273,6 @@ function App() {
       month: getCurrentMonth(),
       date: today,
     });
-    
-    // Check if should show good boy popup
-    if (user === 'Daniyal' && userData) {
-      const shouldShowPopup = shouldShowGoodBoy(
-        'Daniyal',
-        userData.goodBoyShownDates,
-        userData.firstChoreCompleted
-      );
-      
-      if (shouldShowPopup && userId) {
-        await addGoodBoyDate({ userId, date: getTodayString() });
-        setShowGoodBoy(true);
-      }
-    }
   };
   
   // Handle trash tally decrement
@@ -299,10 +282,10 @@ function App() {
     
     if (!targetUserId) return;
     
-    const userTrash = user === 'Aleem' ? aleemTrash : daniyalTrash;
+    const userCurrentMonth = user === 'Aleem' ? aleemCurrentMonth : daniyalCurrentMonth;
     
     // Only allow decrement if they have incremented today
-    if (!userTrash || userTrash.count <= 0 || userTrash.lastIncrementDate !== today) {
+    if (!userCurrentMonth || userCurrentMonth.count <= 0 || userCurrentMonth.lastIncrementDate !== today) {
       return;
     }
     
@@ -390,13 +373,11 @@ function App() {
   
   // Get strike counts
   const getStrikeCount = (user: User) => {
-    const currentMonth = getCurrentMonth();
-    return strikes.filter(s => s.givenTo === user && s.month === currentMonth).length;
+    return strikes.filter(s => s.givenTo === user).length;
   };
   
-  const getCurrentMonthStrikes = () => {
-    const currentMonth = getCurrentMonth();
-    return strikes.filter(s => s.month === currentMonth);
+  const getAllStrikes = () => {
+    return strikes;
   };
   
   // Show login screen if not logged in
@@ -461,11 +442,18 @@ function App() {
           </div>
           
           {/* Strike Counter */}
-          <div 
-            className="flex items-center justify-center gap-3 sm:gap-4 bg-white/10 rounded-lg p-3 cursor-pointer hover:bg-white/20 transition-all"
-            onClick={() => setShowStrikeHistory(true)}
-          >
-            <div className="flex items-center gap-2 sm:gap-2">
+          <div className="flex items-center justify-center gap-3 sm:gap-4 bg-white/10 rounded-lg p-3">
+            <div 
+              className={`flex items-center gap-2 sm:gap-2 rounded px-2 py-1 transition-all ${
+                currentUser !== 'Aleem' ? 'cursor-pointer hover:bg-white/20' : 'opacity-75'
+              }`}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (currentUser !== 'Aleem') {
+                  handleOpenStrikeModal('Aleem');
+                }
+              }}
+            >
               <span className="text-sm sm:text-sm">Aleem</span>
               <span className={`px-2 sm:px-2 py-1 rounded-full text-xs sm:text-xs font-bold flex items-center gap-1 sm:gap-1 ${
                 aleemStrikes > 0 ? 'bg-red-500' : 'bg-green-500'
@@ -474,7 +462,17 @@ function App() {
               </span>
             </div>
             <span className="text-white/50">|</span>
-            <div className="flex items-center gap-2 sm:gap-2">
+            <div 
+              className={`flex items-center gap-2 sm:gap-2 rounded px-2 py-1 transition-all ${
+                currentUser !== 'Daniyal' ? 'cursor-pointer hover:bg-white/20' : 'opacity-75'
+              }`}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (currentUser !== 'Daniyal') {
+                  handleOpenStrikeModal('Daniyal');
+                }
+              }}
+            >
               <span className={`px-2 sm:px-2 py-1 rounded-full text-xs sm:text-xs font-bold flex items-center gap-1 sm:gap-1 ${
                 daniyalStrikes > 0 ? 'bg-red-500' : 'bg-green-500'
               }`}>
@@ -482,7 +480,13 @@ function App() {
               </span>
               <span className="text-sm sm:text-sm">Daniyal</span>
             </div>
-            <span className="hidden sm:inline text-xs text-white/60 ml-2">← Tap for history</span>
+            <button
+              onClick={() => setShowStrikeHistory(true)}
+              className="ml-2 px-2 py-1 bg-white/20 hover:bg-white/30 rounded text-xs transition-all"
+              title="View strike history"
+            >
+              History
+            </button>
           </div>
         </div>
       </header>
@@ -527,6 +531,7 @@ function App() {
           chores={chores}
           strikes={strikes}
           currentUser={currentUser}
+          loadingChores={loadingChores}
           onToggleChore={handleToggleChore}
           onAddComment={handleAddComment}
           onStrike={(targetUser, choreId) => handleOpenStrikeModal(targetUser, choreId)}
@@ -542,6 +547,7 @@ function App() {
           <TodaysChores 
             currentUser={currentUser}
             chores={chores}
+            loadingChores={loadingChores}
             onToggle={handleToggleChore}
           />
         </div>
@@ -550,11 +556,6 @@ function App() {
       {/* Tutorial Modal for Daniyal */}
       {shouldShowTutorial && (
         <TutorialModal onComplete={handleTutorialComplete} />
-      )}
-      
-      {/* Good Boy Modal for Daniyal */}
-      {showGoodBoy && (
-        <GoodBoyModal onDismiss={() => setShowGoodBoy(false)} />
       )}
       
       {/* Strike Modal */}
@@ -569,7 +570,7 @@ function App() {
       {/* Strike History Modal */}
       {showStrikeHistory && (
         <StrikeHistoryModal
-          strikes={getCurrentMonthStrikes()}
+          strikes={getAllStrikes()}
           currentUser={currentUser}
           onClose={() => setShowStrikeHistory(false)}
           onDeleteStrike={handleDeleteStrike}
@@ -583,10 +584,12 @@ function App() {
 function TodaysChores({ 
   currentUser, 
   chores,
+  loadingChores,
   onToggle 
 }: { 
   currentUser: User;
   chores: ChoreEntry[];
+  loadingChores: Set<string>;
   onToggle: (date: string, choreType: ChoreType) => void;
 }) {
   const today = new Date();
@@ -658,13 +661,22 @@ function TodaysChores({
               {chore.isYours ? (
                 <button
                   onClick={() => onToggle(dateStr, chore.choreType)}
+                  disabled={loadingChores.has(`${dateStr}-${chore.choreType}`)}
                   className={`px-3 py-2 sm:px-4 sm:py-2 rounded-lg font-medium transition-all flex items-center gap-1.5 sm:gap-2 text-sm sm:text-sm ${
-                    chore.completed
+                    loadingChores.has(`${dateStr}-${chore.choreType}`)
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : chore.completed
                       ? 'bg-gray-200 hover:bg-gray-300 text-gray-700'
                       : 'bg-blue-500 hover:bg-blue-600 text-white'
                   }`}
                 >
-                  {chore.completed ? <><Undo2 size={16} className="sm:w-4 sm:h-4" /> <span className="hidden sm:inline">Undo</span></> : <><Check size={16} className="sm:w-4 sm:h-4" /> Done</>}
+                  {loadingChores.has(`${dateStr}-${chore.choreType}`) ? (
+                    <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                  ) : chore.completed ? (
+                    <><Undo2 size={16} className="sm:w-4 sm:h-4" /> <span className="hidden sm:inline">Undo</span></>
+                  ) : (
+                    <><Check size={16} className="sm:w-4 sm:h-4" /> Done</>
+                  )}
                 </button>
               ) : (
                 <span className={`px-3 py-1.5 sm:px-3 rounded-full text-xs sm:text-sm flex items-center gap-1 ${
