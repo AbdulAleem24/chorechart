@@ -54,6 +54,12 @@ export const incrementTrashTally = mutation({
     if (existing) {
       // Check if already incremented today
       if (existing.lastIncrementDate === args.date) {
+        if (existing.count <= 0) {
+          await ctx.db.patch(existing._id, {
+            count: 1,
+            lastIncrementDate: args.date,
+          });
+        }
         return existing._id;
       }
       await ctx.db.patch(existing._id, {
@@ -93,6 +99,10 @@ export const decrementTrashTally = mutation({
     if (existing && existing.count > 0 && existing.lastIncrementDate === args.date) {
       await ctx.db.patch(existing._id, {
         count: existing.count - 1,
+        lastIncrementDate: undefined,
+      });
+    } else if (existing && existing.count <= 0 && existing.lastIncrementDate) {
+      await ctx.db.patch(existing._id, {
         lastIncrementDate: undefined,
       });
     }

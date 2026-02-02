@@ -52,6 +52,10 @@ export interface TrashTally {
     Aleem?: string; // YYYY-MM-DD of last increment
     Daniyal?: string; // YYYY-MM-DD of last increment
   };
+  currentMonthCounts?: {
+    Aleem: number;
+    Daniyal: number;
+  };
 }
 
 export interface StrikeTally {

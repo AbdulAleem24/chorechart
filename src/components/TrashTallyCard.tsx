@@ -1,4 +1,5 @@
 import type { User, TrashTally } from '../types';
+import { getTodayString } from '../utils';
 import { Trash2, CheckCircle, AlertTriangle, BarChart3, Plus, Minus } from 'lucide-react';
 
 interface TrashTallyCardProps {
@@ -16,11 +17,12 @@ export function TrashTallyCard({ tally, currentUser, onIncrement, onDecrement }:
   const difference = Math.abs(tally.Aleem - tally.Daniyal);
   const leader = tally.Aleem > tally.Daniyal ? 'Aleem' : tally.Daniyal > tally.Aleem ? 'Daniyal' : null;
   
-  // Check if current user has incremented today
-  const today = new Date().toISOString().split('T')[0];
-  const hasIncrementedToday = tally.lastIncrementDate?.[currentUser] === today;
+  // Check if current user has incremented today (local timezone)
+  const today = getTodayString();
+  const currentMonthCount = tally.currentMonthCounts?.[currentUser] ?? tally[currentUser];
+  const hasIncrementedToday = tally.lastIncrementDate?.[currentUser] === today && currentMonthCount > 0;
   const canIncrementToday = !hasIncrementedToday;
-  const canDecrementToday = hasIncrementedToday && tally[currentUser] > 0;
+  const canDecrementToday = hasIncrementedToday && currentMonthCount > 0;
   
   return (
     <div className="bg-white rounded-xl shadow-lg p-5 sm:p-4 mb-4 sm:mb-4">

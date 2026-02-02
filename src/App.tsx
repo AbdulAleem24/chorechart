@@ -108,6 +108,8 @@ function App() {
   const currentMonthStr = getCurrentMonth();
   const aleemCurrentMonth = aleemTrash?.find(t => t.month === currentMonthStr);
   const daniyalCurrentMonth = daniyalTrash?.find(t => t.month === currentMonthStr);
+  const aleemCurrentMonthCount = aleemCurrentMonth?.count || 0;
+  const daniyalCurrentMonthCount = daniyalCurrentMonth?.count || 0;
   
   const trashTally = {
     month: currentMonthStr,
@@ -116,6 +118,10 @@ function App() {
     lastIncrementDate: {
       Aleem: aleemCurrentMonth?.lastIncrementDate,
       Daniyal: daniyalCurrentMonth?.lastIncrementDate,
+    },
+    currentMonthCounts: {
+      Aleem: aleemCurrentMonthCount,
+      Daniyal: daniyalCurrentMonthCount,
     },
   };
   
@@ -264,7 +270,7 @@ function App() {
     
     // Check if already incremented today
     const userCurrentMonth = user === 'Aleem' ? aleemCurrentMonth : daniyalCurrentMonth;
-    if (userCurrentMonth?.lastIncrementDate === today) {
+    if (userCurrentMonth?.lastIncrementDate === today && (userCurrentMonth.count || 0) > 0) {
       return;
     }
     
