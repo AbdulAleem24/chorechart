@@ -3,7 +3,8 @@
 export type User = 'Aleem' | 'Daniyal';
 
 export type ChoreType = 
-  | 'sweeping_mopping'
+  | 'sweeping'
+  | 'mopping'
   | 'kitchen_cleaning'
   | 'veranda_cleaning'
   | 'toilet_bathroom';
@@ -75,20 +76,25 @@ export interface AppState {
 }
 
 export const CHORE_LABELS: Record<ChoreType, string> = {
-  sweeping_mopping: 'Sweeping & Mopping',
+  sweeping: 'Sweeping',
+  mopping: 'Mopping',
   kitchen_cleaning: 'Kitchen Cleaning',
   veranda_cleaning: 'Veranda Cleaning',
   toilet_bathroom: 'Toilet & Bathroom',
 };
 
-export const CHORE_SCHEDULE: Record<ChoreType, 'alternating' | 'weekly'> = {
-  sweeping_mopping: 'alternating',
-  kitchen_cleaning: 'alternating',
-  veranda_cleaning: 'weekly',
+export const CHORE_SCHEDULE: Record<ChoreType, 'twice-weekly' | 'weekly' | 'biweekly'> = {
+  sweeping: 'twice-weekly',
+  mopping: 'weekly',
+  kitchen_cleaning: 'weekly',
+  veranda_cleaning: 'biweekly',
   toilet_bathroom: 'weekly',
 };
 
-// Days when alternating chores occur (every other day)
-// Sweeping: Days 1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31 (odd days)
-// Kitchen: Days 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30 (even days)
-// Within those, they alternate between users
+// Schedule (anchored on March 1, 2026 = Sunday):
+// Sweeping: 2x/week — Daniyal on Sundays, Aleem on Thursdays (fixed)
+// Mopping: Weekly, alternating — mop happens on the mopper's sweep day
+//   Daniyal's mop week → Sunday, Aleem's mop week → Thursday
+// Kitchen: Weekly on Sundays, alternating (Mar 1: Daniyal, Mar 8: Aleem...)
+// Veranda: Bi-weekly on Sundays, alternating (Feb 22: Daniyal, Mar 8: Aleem...)
+// Toilet & Bath: Weekly on Sundays, alternating (Feb 22: Daniyal, Mar 1: Aleem...)

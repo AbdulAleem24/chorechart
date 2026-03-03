@@ -603,7 +603,8 @@ function TodaysChores({
   const dayName = today.toLocaleDateString('en-US', { weekday: 'long' });
   
   const choreTypes: ChoreType[] = [
-    'sweeping_mopping',
+    'sweeping',
+    'mopping',
     'kitchen_cleaning',
     'veranda_cleaning',
     'toilet_bathroom',

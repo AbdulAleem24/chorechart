@@ -128,62 +128,78 @@ export const generateId = (): string => {
 };
 
 // Get assigned user for a chore on a specific date
-// Starting January 18, 2026 (Sunday):
-// - Daniyal: Sweeping & Mopping, Kitchen Cleaning, Veranda Cleaning
-// - Aleem: Toilet & Bathroom
-// Chores alternate every OTHER day (with 1-day gap between)
+// Anchored on known completions:
+//   March 1, 2026 (Sunday) = Daniyal did sweeping, mopping, kitchen
+//   Feb 22, 2026 (Sunday) = Daniyal did veranda, toilet & bathroom
+//
+// Schedule:
+//   Sweeping: 2x/week — Daniyal=Sunday, Aleem=Thursday (fixed)
+//   Mopping: Weekly, alternating — mop happens on the mopper's sweep day
+//     Daniyal's mop week → Sunday, Aleem's mop week → Thursday
+//   Kitchen: Weekly on Sundays, alternating
+//   Veranda: Bi-weekly on Sundays, alternating
+//   Toilet & Bath: Weekly on Sundays, alternating
 export const getAssignedUser = (
   choreType: ChoreType,
   date: string
 ): User | null => {
   const [year, month, day] = date.split('-').map(Number);
   const dateObj = new Date(year, month - 1, day);
-  
-  // Reference date: January 18, 2026 (Sunday - our starting point)
-  const referenceDate = new Date(2026, 0, 18);
-  const currentDate = new Date(year, month - 1, day);
-  
-  // Calculate days since reference date
-  const daysSinceReference = Math.floor((currentDate.getTime() - referenceDate.getTime()) / (1000 * 60 * 60 * 24));
-  
-  // For sweeping & mopping: Every OTHER day, alternating (offset by 1 day from kitchen)
-  // Jan 18 (day 0) = Daniyal (exception), Jan 19 (day 1) = Aleem, Jan 20 (day 2) = NONE, Jan 21 (day 3) = Daniyal, Jan 22 (day 4) = NONE, Jan 23 (day 5) = Aleem...
-  if (choreType === 'sweeping_mopping') {
-    // Special exception: Jan 18 = Daniyal (day 0)
-    if (daysSinceReference === 0) return 'Daniyal';
-    // Only happens on odd days (1, 3, 5, 7...)
-    if (daysSinceReference % 2 !== 1) return null;
-    // Alternate between users: day 1,5,9 = Aleem, day 3,7,11 = Daniyal
-    const choreInstance = Math.floor(daysSinceReference / 2);
-    return choreInstance % 2 === 0 ? 'Aleem' : 'Daniyal';
+  const dayOfWeek = dateObj.getDay(); // 0=Sun, 4=Thu
+
+  // Helper: weeks since a reference Sunday
+  const weeksSince = (refYear: number, refMonth: number, refDay: number) => {
+    const ref = new Date(refYear, refMonth - 1, refDay);
+    const current = new Date(year, month - 1, day);
+    return Math.floor((current.getTime() - ref.getTime()) / (1000 * 60 * 60 * 24 * 7));
+  };
+
+  // --- Sweeping: 2x/week, fixed days ---
+  // Daniyal sweeps every Sunday, Aleem sweeps every Thursday
+  if (choreType === 'sweeping') {
+    if (dayOfWeek === 0) return 'Daniyal'; // Sunday
+    if (dayOfWeek === 4) return 'Aleem';   // Thursday
+    return null;
   }
-  
-  // For kitchen cleaning: Every OTHER day, alternating
-  // Jan 18 (day 0) = Daniyal, Jan 19 (day 1) = NONE, Jan 20 (day 2) = Aleem, Jan 21 (day 3) = NONE, Jan 22 (day 4) = Daniyal...
+
+  // --- Mopping: Weekly on Sundays, alternating ---
+  // Reference: Mar 1, 2026 (Sun) = week 0 = Daniyal
+  // Week 1 = Aleem, Week 2 = Daniyal, ...
+  // Always 7-day gap between mops
+  if (choreType === 'mopping') {
+    if (dayOfWeek !== 0) return null; // Only Sundays
+    const weeks = weeksSince(2026, 3, 1); // ref = Mar 1, 2026
+    return weeks % 2 === 0 ? 'Daniyal' : 'Aleem';
+  }
+
+  // --- Kitchen Cleaning: Weekly on Sundays, alternating ---
+  // Reference: Mar 1, 2026 (Sun) = week 0 = Daniyal
   if (choreType === 'kitchen_cleaning') {
-    // Only happens on even days (0, 2, 4, 6...)
-    if (daysSinceReference % 2 !== 0) return null;
-    // Alternate between users: day 0,4,8 = Daniyal, day 2,6,10 = Aleem
-    const choreInstance = Math.floor(daysSinceReference / 2);
-    return choreInstance % 2 === 0 ? 'Daniyal' : 'Aleem';
+    if (dayOfWeek !== 0) return null; // Only Sundays
+    const weeks = weeksSince(2026, 3, 1);
+    return weeks % 2 === 0 ? 'Daniyal' : 'Aleem';
   }
-  
-  // For veranda cleaning: Weekly on Sundays
-  // Jan 18, 2026 (Sunday) = Daniyal, then alternates weekly
+
+  // --- Veranda Cleaning: Bi-weekly on Sundays, alternating ---
+  // Reference: Feb 22, 2026 (Sun) = week 0 = Daniyal
+  // Only on even weeks (every 2 weeks)
   if (choreType === 'veranda_cleaning') {
-    if (dateObj.getDay() !== 0) return null; // Only on Sundays
-    const weeksSinceReference = Math.floor(daysSinceReference / 7);
-    return weeksSinceReference % 2 === 0 ? 'Daniyal' : 'Aleem';
+    if (dayOfWeek !== 0) return null; // Only Sundays
+    const weeks = weeksSince(2026, 2, 22);
+    if (weeks % 2 !== 0) return null; // Only every other week
+    const instance = Math.floor(weeks / 2);
+    return instance % 2 === 0 ? 'Daniyal' : 'Aleem';
   }
-  
-  // For toilet & bathroom: Weekly on Sundays
-  // Jan 18, 2026 (Sunday) = Aleem, then alternates weekly
+
+  // --- Toilet & Bathroom: Weekly on Sundays, alternating ---
+  // Reference: Feb 22, 2026 (Sun) = week 0 = Daniyal
+  // So Mar 1 = week 1 = Aleem, Mar 8 = week 2 = Daniyal, etc.
   if (choreType === 'toilet_bathroom') {
-    if (dateObj.getDay() !== 0) return null; // Only on Sundays
-    const weeksSinceReference = Math.floor(daysSinceReference / 7);
-    return weeksSinceReference % 2 === 0 ? 'Aleem' : 'Daniyal';
+    if (dayOfWeek !== 0) return null; // Only Sundays
+    const weeks = weeksSince(2026, 2, 22);
+    return weeks % 2 === 0 ? 'Daniyal' : 'Aleem';
   }
-  
+
   return null;
 };
 

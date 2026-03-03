@@ -24,7 +24,8 @@ export const toggleChore = mutation({
   args: {
     date: v.string(),
     choreType: v.union(
-      v.literal("sweeping_mopping"),
+      v.literal("sweeping"),
+      v.literal("mopping"),
       v.literal("kitchen_cleaning"),
       v.literal("veranda_cleaning"),
       v.literal("toilet_bathroom")
@@ -78,7 +79,8 @@ export const addComment = mutation({
     choreId: v.optional(v.id("chores")),
     date: v.optional(v.string()),
     choreType: v.optional(v.union(
-      v.literal("sweeping_mopping"),
+      v.literal("sweeping"),
+      v.literal("mopping"),
       v.literal("kitchen_cleaning"),
       v.literal("veranda_cleaning"),
       v.literal("toilet_bathroom")

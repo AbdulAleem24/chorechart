@@ -20,7 +20,8 @@ interface ChoreCalendarProps {
 }
 
 const choreTypes: ChoreType[] = [
-  'sweeping_mopping',
+  'sweeping',
+  'mopping',
   'kitchen_cleaning',
   'veranda_cleaning',
   'toilet_bathroom',
