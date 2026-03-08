@@ -18,6 +18,7 @@ export default defineSchema({
     userId: v.id("users"),
     date: v.string(), // YYYY-MM-DD format
     choreType: v.union(
+      v.literal("sweeping_mopping"),
       v.literal("sweeping"),
       v.literal("mopping"),
       v.literal("kitchen_cleaning"),
