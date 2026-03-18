@@ -72,21 +72,20 @@ export function ChoreCalendar({
   
   const handleCellClick = (day: number, choreType: ChoreType) => {
     const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    const assignedUser = getAssignedUser(choreType, dateStr);
-    
-    if (!assignedUser) return;
-    
-    // Check if date is actionable (within 2 days from today)
-    const isActionable = isDateActionable(dateStr);
-    
     const existing = getChoreEntry(chores, dateStr, choreType);
-    const isOwnChore = assignedUser === currentUser;
-    
-    // If an entry exists, always allow opening modal to view details
+
+    // Always allow opening existing entries, even on unscheduled days.
     if (existing) {
       setSelectedChore(existing);
       return;
     }
+
+    const assignedUser = getAssignedUser(choreType, dateStr);
+    if (!assignedUser) return;
+
+    // Check if date is actionable (within 2 days from today)
+    const isActionable = isDateActionable(dateStr);
+    const isOwnChore = assignedUser === currentUser;
     
     // No existing entry
     // Allow opening for: own actionable chores, OR any chore in current month (for comments)
@@ -125,8 +124,9 @@ export function ChoreCalendar({
   
   const renderCell = (day: number, choreType: ChoreType) => {
     const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    const assignedUser = getAssignedUser(choreType, dateStr);
     const choreEntry = getChoreEntry(chores, dateStr, choreType);
+    const assignedUser = getAssignedUser(choreType, dateStr);
+    const displayUser = choreEntry?.completedBy ?? assignedUser;
     const choreKey = `${dateStr}-${choreType}`;
     const isLoading = loadingChores.has(choreKey);
     
@@ -134,7 +134,7 @@ export function ChoreCalendar({
     const isOwnChore = assignedUser === currentUser;
     const isActionable = isDateActionable(dateStr);
     
-    if (!assignedUser) {
+    if (!assignedUser && !choreEntry) {
       return (
         <div 
           key={`${choreType}-${day}`}
@@ -167,7 +167,7 @@ export function ChoreCalendar({
         className={`chore-cell relative ${
           isCompleted
             ? 'chore-cell-completed'
-            : assignedUser === 'Aleem'
+            : displayUser === 'Aleem'
             ? 'chore-cell-aleem'
             : 'chore-cell-daniyal'
         } ${
@@ -177,7 +177,7 @@ export function ChoreCalendar({
         } ${
           !isFutureNonActionable && !isClickable ? 'opacity-30 cursor-not-allowed' : !isFutureNonActionable ? 'cursor-pointer' : ''
         }`}
-        title={`${CHORE_LABELS[choreType]} - ${formatDate(dateStr)} - ${assignedUser}${
+        title={`${CHORE_LABELS[choreType]} - ${formatDate(dateStr)} - ${displayUser ?? 'Unassigned'}${
           !isOwnChore ? ' (View/Comment)' : ''
         }${isFutureNonActionable ? ' (Too far in future)' : !isClickable ? ' (Not available)' : ''}${hasStrike ? ` - ${choreStrikes.length} Strike(s)` : ''}`}
       >
@@ -187,10 +187,10 @@ export function ChoreCalendar({
           ) : isCompleted ? (
             <>
               <Check size={16} className="text-white" />
-              <span className="text-[9px] font-bold text-white/90 leading-none">{assignedUser[0]}</span>
+              <span className="text-[9px] font-bold text-white/90 leading-none">{displayUser ? displayUser[0] : '-'}</span>
             </>
           ) : (
-            <span className="text-base font-semibold">{assignedUser === 'Aleem' ? 'A' : 'D'}</span>
+            <span className="text-base font-semibold">{displayUser === 'Aleem' ? 'A' : 'D'}</span>
           )}
         </div>
         {hasComments && (

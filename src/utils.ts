@@ -143,19 +143,34 @@ export const getAssignedUser = (
   choreType: ChoreType,
   date: string
 ): User | null => {
+  // Temporary date-specific exceptions requested by user.
+  const assignmentOverrides: Record<string, User | null> = {
+    '2026-03-16:sweeping': null,
+    '2026-03-16:mopping': null,
+    '2026-03-17:kitchen_cleaning': null,
+    '2026-03-19:kitchen_cleaning': null,
+    '2026-03-21:kitchen_cleaning': 'Daniyal',
+  };
+  const overrideKey = `${date}:${choreType}`;
+  if (overrideKey in assignmentOverrides) {
+    return assignmentOverrides[overrideKey];
+  }
+
   const [year, month, day] = date.split('-').map(Number);
   const dateObj = new Date(year, month - 1, day);
   const dayOfWeek = dateObj.getDay(); // 0=Sun, 4=Thu
 
+  const currentDate = new Date(year, month - 1, day);
+  const referenceDate = new Date(2026, 0, 18);
+  const daysSinceReference = Math.floor((currentDate.getTime() - referenceDate.getTime()) / (1000 * 60 * 60 * 24));
+
   // Helper: weeks since a reference Sunday
   const weeksSince = (refYear: number, refMonth: number, refDay: number) => {
     const ref = new Date(refYear, refMonth - 1, refDay);
-    const current = new Date(year, month - 1, day);
-    return Math.floor((current.getTime() - ref.getTime()) / (1000 * 60 * 60 * 24 * 7));
+    return Math.floor((currentDate.getTime() - ref.getTime()) / (1000 * 60 * 60 * 24 * 7));
   };
 
   // --- Sweeping: 2x/week, fixed days ---
-  // Daniyal sweeps every Sunday, Aleem sweeps every Thursday
   if (choreType === 'sweeping') {
     if (dayOfWeek === 0) return 'Daniyal'; // Sunday
     if (dayOfWeek === 4) return 'Aleem';   // Thursday
@@ -163,39 +178,50 @@ export const getAssignedUser = (
   }
 
   // --- Mopping: Weekly on Sundays, alternating ---
-  // Reference: Mar 1, 2026 (Sun) = week 0 = Daniyal
-  // Week 1 = Aleem, Week 2 = Daniyal, ...
-  // Always 7-day gap between mops
   if (choreType === 'mopping') {
     if (dayOfWeek !== 0) return null; // Only Sundays
     const weeks = weeksSince(2026, 3, 1); // ref = Mar 1, 2026
     return weeks % 2 === 0 ? 'Daniyal' : 'Aleem';
   }
 
-  // --- Kitchen Cleaning: Weekly on Sundays, alternating ---
-  // Reference: Mar 1, 2026 (Sun) = week 0 = Daniyal
+  // --- Kitchen Cleaning: alternating-day cadence with requested phase shift ---
   if (choreType === 'kitchen_cleaning') {
-    if (dayOfWeek !== 0) return null; // Only Sundays
-    const weeks = weeksSince(2026, 3, 1);
-    return weeks % 2 === 0 ? 'Daniyal' : 'Aleem';
+    // Phase shift requested: from Mar 23, 2026 onward, keep 2-day cadence but swap assignee order
+    // so Mar 23 = Aleem, Mar 25 = Daniyal, Mar 27 = Aleem, ...
+    const kitchenShiftStart = new Date(2026, 2, 23);
+    if (currentDate.getTime() >= kitchenShiftStart.getTime()) {
+      const daysSinceShift = Math.floor((currentDate.getTime() - kitchenShiftStart.getTime()) / (1000 * 60 * 60 * 24));
+      if (daysSinceShift % 2 !== 0) return null;
+      const kitchenInstance = Math.floor(daysSinceShift / 2);
+      return kitchenInstance % 2 === 0 ? 'Aleem' : 'Daniyal';
+    }
+
+    // Original cadence before shift: every other day, alternating users.
+    if (daysSinceReference % 2 !== 0) return null;
+    const choreInstance = Math.floor(daysSinceReference / 2);
+    return choreInstance % 2 === 0 ? 'Daniyal' : 'Aleem';
   }
 
   // --- Veranda Cleaning: Bi-weekly on Sundays, alternating ---
-  // Reference: Feb 22, 2026 (Sun) = week 0 = Daniyal
-  // Only on even weeks (every 2 weeks)
   if (choreType === 'veranda_cleaning') {
     if (dayOfWeek !== 0) return null; // Only Sundays
     const weeks = weeksSince(2026, 2, 22);
-    if (weeks % 2 !== 0) return null; // Only every other week
+    if (weeks % 2 !== 0) return null; // Every other week
     const instance = Math.floor(weeks / 2);
     return instance % 2 === 0 ? 'Daniyal' : 'Aleem';
   }
 
-  // --- Toilet & Bathroom: Weekly on Sundays, alternating ---
-  // Reference: Feb 22, 2026 (Sun) = week 0 = Daniyal
-  // So Mar 1 = week 1 = Aleem, Mar 8 = week 2 = Daniyal, etc.
+  // --- Toilet & Bathroom: weekly on Sundays with requested phase shift ---
   if (choreType === 'toilet_bathroom') {
     if (dayOfWeek !== 0) return null; // Only Sundays
+
+    // From Mar 22, 2026 onward, weekly alternation starts with Aleem.
+    const toiletShiftStart = new Date(2026, 2, 22);
+    if (currentDate.getTime() >= toiletShiftStart.getTime()) {
+      const weeksSinceShift = Math.floor((currentDate.getTime() - toiletShiftStart.getTime()) / (1000 * 60 * 60 * 24 * 7));
+      return weeksSinceShift % 2 === 0 ? 'Aleem' : 'Daniyal';
+    }
+
     const weeks = weeksSince(2026, 2, 22);
     return weeks % 2 === 0 ? 'Daniyal' : 'Aleem';
   }
