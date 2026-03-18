@@ -129,24 +129,21 @@ export const generateId = (): string => {
 
 // Get assigned user for a chore on a specific date
 // Anchored on known completions:
-//   March 1, 2026 (Sunday) = Daniyal did sweeping, mopping, kitchen
+//   March 1, 2026 (Sunday) = Daniyal did sweeping & mopping, kitchen
 //   Feb 22, 2026 (Sunday) = Daniyal did veranda, toilet & bathroom
 //
 // Schedule:
-//   Sweeping: 2x/week — Daniyal=Sunday, Aleem=Thursday (fixed)
-//   Mopping: Weekly, alternating — mop happens on the mopper's sweep day
-//     Daniyal's mop week → Sunday, Aleem's mop week → Thursday
-//   Kitchen: Weekly on Sundays, alternating
+//   Sweeping & Mopping: Every other day, alternating between users
+//   Kitchen: Every other day (opposite cadence), alternating with phase shift from Mar 23
 //   Veranda: Bi-weekly on Sundays, alternating
-//   Toilet & Bath: Weekly on Sundays, alternating
+//   Toilet & Bath: Weekly on Sundays, alternating with phase shift from Mar 22
 export const getAssignedUser = (
   choreType: ChoreType,
   date: string
 ): User | null => {
   // Temporary date-specific exceptions requested by user.
   const assignmentOverrides: Record<string, User | null> = {
-    '2026-03-16:sweeping': null,
-    '2026-03-16:mopping': null,
+    '2026-03-16:sweeping_mopping': null,
     '2026-03-17:kitchen_cleaning': null,
     '2026-03-19:kitchen_cleaning': null,
     '2026-03-21:kitchen_cleaning': 'Daniyal',
@@ -157,36 +154,37 @@ export const getAssignedUser = (
   }
 
   const [year, month, day] = date.split('-').map(Number);
+  const currentDate = new Date(year, month - 1, day);
   const dateObj = new Date(year, month - 1, day);
   const dayOfWeek = dateObj.getDay(); // 0=Sun, 4=Thu
 
-  const currentDate = new Date(year, month - 1, day);
+  // Reference date for alternating-day cadence
   const referenceDate = new Date(2026, 0, 18);
   const daysSinceReference = Math.floor((currentDate.getTime() - referenceDate.getTime()) / (1000 * 60 * 60 * 24));
 
   // Helper: weeks since a reference Sunday
   const weeksSince = (refYear: number, refMonth: number, refDay: number) => {
     const ref = new Date(refYear, refMonth - 1, refDay);
-    return Math.floor((currentDate.getTime() - ref.getTime()) / (1000 * 60 * 60 * 24 * 7));
+    const current = new Date(year, month - 1, day);
+    return Math.floor((current.getTime() - ref.getTime()) / (1000 * 60 * 60 * 24 * 7));
   };
 
-  // --- Sweeping: 2x/week, fixed days ---
-  if (choreType === 'sweeping') {
-    if (dayOfWeek === 0) return 'Daniyal'; // Sunday
-    if (dayOfWeek === 4) return 'Aleem';   // Thursday
-    return null;
+  // --- Sweeping & Mopping: every other day, alternating users ---
+  // Jan 18 (day 0) = Daniyal special case, then odd days only and alternating assignee.
+  if (choreType === 'sweeping_mopping') {
+    if (daysSinceReference === 0) return 'Daniyal';
+    if (daysSinceReference % 2 !== 1) return null;
+    const choreInstance = Math.floor(daysSinceReference / 2);
+    return choreInstance % 2 === 0 ? 'Aleem' : 'Daniyal';
   }
 
-  // --- Mopping: Weekly on Sundays, alternating ---
-  if (choreType === 'mopping') {
-    if (dayOfWeek !== 0) return null; // Only Sundays
-    const weeks = weeksSince(2026, 3, 1); // ref = Mar 1, 2026
-    return weeks % 2 === 0 ? 'Daniyal' : 'Aleem';
-  }
-
-  // --- Kitchen Cleaning: alternating-day cadence with requested phase shift ---
+  // --- Kitchen Cleaning: Weekly on Sundays, alternating ---
+  // Reference: Mar 1, 2026 (Sun) = week 0 = Daniyal
   if (choreType === 'kitchen_cleaning') {
-    // Phase shift requested: from Mar 23, 2026 onward, keep 2-day cadence but swap assignee order
+    // Only happens on even days (0, 2, 4, 6...)
+    if (daysSinceReference % 2 !== 0) return null;
+
+    // Phase shift requested: from Mar 23, 2026 onward, keep cadence but swap assignee order
     // so Mar 23 = Aleem, Mar 25 = Daniyal, Mar 27 = Aleem, ...
     const kitchenShiftStart = new Date(2026, 2, 23);
     if (currentDate.getTime() >= kitchenShiftStart.getTime()) {
@@ -196,34 +194,37 @@ export const getAssignedUser = (
       return kitchenInstance % 2 === 0 ? 'Aleem' : 'Daniyal';
     }
 
-    // Original cadence before shift: every other day, alternating users.
-    if (daysSinceReference % 2 !== 0) return null;
+    // Alternate between users: day 0,4,8 = Daniyal, day 2,6,10 = Aleem
     const choreInstance = Math.floor(daysSinceReference / 2);
     return choreInstance % 2 === 0 ? 'Daniyal' : 'Aleem';
   }
 
   // --- Veranda Cleaning: Bi-weekly on Sundays, alternating ---
+  // Reference: Feb 22, 2026 (Sun) = week 0 = Daniyal
+  // Only on even weeks (every 2 weeks)
   if (choreType === 'veranda_cleaning') {
     if (dayOfWeek !== 0) return null; // Only Sundays
     const weeks = weeksSince(2026, 2, 22);
-    if (weeks % 2 !== 0) return null; // Every other week
+    if (weeks % 2 !== 0) return null; // Only every other week
     const instance = Math.floor(weeks / 2);
     return instance % 2 === 0 ? 'Daniyal' : 'Aleem';
   }
 
-  // --- Toilet & Bathroom: weekly on Sundays with requested phase shift ---
+  // --- Toilet & Bathroom: Weekly on Sundays, alternating ---
+  // Reference: Feb 22, 2026 (Sun) = week 0 = Daniyal
+  // So Mar 1 = week 1 = Aleem, Mar 8 = week 2 = Daniyal, etc.
   if (choreType === 'toilet_bathroom') {
-    if (dayOfWeek !== 0) return null; // Only Sundays
+    if (dateObj.getDay() !== 0) return null; // Only on Sundays
 
-    // From Mar 22, 2026 onward, weekly alternation starts with Aleem.
+    // Phase shift requested: from Mar 22, 2026 onward, weekly alternation starts with Aleem.
     const toiletShiftStart = new Date(2026, 2, 22);
     if (currentDate.getTime() >= toiletShiftStart.getTime()) {
       const weeksSinceShift = Math.floor((currentDate.getTime() - toiletShiftStart.getTime()) / (1000 * 60 * 60 * 24 * 7));
       return weeksSinceShift % 2 === 0 ? 'Aleem' : 'Daniyal';
     }
 
-    const weeks = weeksSince(2026, 2, 22);
-    return weeks % 2 === 0 ? 'Daniyal' : 'Aleem';
+    const weeksSinceReference = Math.floor(daysSinceReference / 7);
+    return weeksSinceReference % 2 === 0 ? 'Aleem' : 'Daniyal';
   }
 
   return null;
