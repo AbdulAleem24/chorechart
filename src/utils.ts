@@ -135,7 +135,7 @@ export const generateId = (): string => {
 // Schedule:
 //   Sweeping & Mopping: Every other day, alternating between users
 //   Kitchen: Every other day (opposite cadence), alternating with phase shift from Mar 23
-//   Veranda: Bi-weekly on Sundays, alternating
+//   Veranda: Weekly on Sundays, alternating
 //   Toilet & Bath: Weekly on Sundays, alternating with phase shift from Mar 22
 export const getAssignedUser = (
   choreType: ChoreType,
@@ -199,15 +199,12 @@ export const getAssignedUser = (
     return choreInstance % 2 === 0 ? 'Daniyal' : 'Aleem';
   }
 
-  // --- Veranda Cleaning: Bi-weekly on Sundays, alternating ---
+  // --- Veranda Cleaning: Weekly on Sundays, alternating ---
   // Reference: Feb 22, 2026 (Sun) = week 0 = Daniyal
-  // Only on even weeks (every 2 weeks)
   if (choreType === 'veranda_cleaning') {
     if (dayOfWeek !== 0) return null; // Only Sundays
     const weeks = weeksSince(2026, 2, 22);
-    if (weeks % 2 !== 0) return null; // Only every other week
-    const instance = Math.floor(weeks / 2);
-    return instance % 2 === 0 ? 'Daniyal' : 'Aleem';
+    return weeks % 2 === 0 ? 'Daniyal' : 'Aleem';
   }
 
   // --- Toilet & Bathroom: Weekly on Sundays, alternating ---

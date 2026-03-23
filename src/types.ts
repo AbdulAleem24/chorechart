@@ -81,10 +81,10 @@ export const CHORE_LABELS: Record<ChoreType, string> = {
   toilet_bathroom: 'Toilet & Bathroom',
 };
 
-export const CHORE_SCHEDULE: Record<ChoreType, 'alternating' | 'weekly' | 'biweekly'> = {
+export const CHORE_SCHEDULE: Record<ChoreType, 'alternating' | 'weekly'> = {
   sweeping_mopping: 'alternating',
   kitchen_cleaning: 'alternating',
-  veranda_cleaning: 'biweekly',
+  veranda_cleaning: 'weekly',
   toilet_bathroom: 'weekly',
 };
 
@@ -92,6 +92,6 @@ export const CHORE_SCHEDULE: Record<ChoreType, 'alternating' | 'weekly' | 'biwee
 // Sweeping & Mopping: Every other day, alternating users
 // Kitchen: Every other day opposite to sweeping_mopping, alternating users
 //   with a phase shift from Mar 23, 2026 (Mar 23 = Aleem)
-// Veranda: Bi-weekly on Sundays, alternating (Feb 22 = Daniyal)
+// Veranda: Weekly on Sundays, alternating (Feb 22 = Daniyal)
 // Toilet & Bath: Weekly on Sundays, alternating
 //   with a phase shift from Mar 22, 2026 (Mar 22 = Aleem)
